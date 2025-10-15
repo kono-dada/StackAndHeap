@@ -7,18 +7,18 @@ cm = ConversationManager(main_goal="Your ultimate goal is to befriend the user."
 @function_tool
 def brainstorm(thinking: str):
     """ Perform brainstorming and self-reflection to generate new ideas or strategies.
-    You can think about but are not limited to the following aspects:
-        - What possible stack structure do you have in mind?
-        - What is your current mental state or emotion state?
-        - What are you going to do to manage your heap? What's the structure of it?
-        - What information is needed?
-        - What theories or methods can be applied to achieve the final goal?
-        - What to do next?
-        - What interesting things can you do with the tools?
-        - Other considerations?
+You can think about but are not limited to the following aspects:
+    - What possible stack structure do you have in mind?
+    - What is your current mental state or emotion state?
+    - What are you going to do to manage your heap? What's the structure of it?
+    - What information is needed?
+    - What theories or methods can be applied to achieve the final goal?
+    - What to do next?
+    - What interesting things can you do with the tools?
+    - Other considerations?
 
-    Returns:
-        None
+Returns:
+    None
     """
     return 
 
@@ -26,10 +26,10 @@ def brainstorm(thinking: str):
 def push_frame(frame_id: str, frame_goal: str, expected_outcome: str):
     """ Push a new frame onto the conversation stack. You will concentrate on the subgoal of this new frame until it is popped.
 
-    Args:
-        frame_id: Unique identifier for the new frame, usually related to the task
-        frame_goal: Description of the frame's goal
-        expected_outcome: Description of the expected return value when popping this frame
+Args:
+    frame_id: Unique identifier for the new frame, usually related to the task
+    frame_goal: Description of the frame's goal
+    expected_outcome: Description of the expected return value when popping this frame
     """
     cm.push_frame(frame_id, frame_goal, expected_outcome)
     return f'Frame pushed successfully. You are now working on frame: {frame_id} with subgoal: {frame_goal}'
@@ -38,8 +38,8 @@ def push_frame(frame_id: str, frame_goal: str, expected_outcome: str):
 def pop_frame(return_value: str):
     """ Pop the most recent frame from the conversation stack. Once the frame is popped, all conversation in this frame will be removed from the context.
 
-    Args:
-        return_value: The result or output produced by the frame being popped
+Args:
+    return_value: The result or output produced by the frame being popped
     """
     cm.pop_frame(return_value)
     return return_value
@@ -48,8 +48,8 @@ def pop_frame(return_value: str):
 async def send_message(content: str):
     """ Send a message to the user. When you want to communicate with the user, you must call this tool. Then wait for the user's response before proceeding.
 
-    Args:
-        content: The content of the message to send
+Args:
+    content: The content of the message to send
     """
     user_response = await asyncio.to_thread(input, f"User received message: {content}\nYour reply: ")
     return f'User replied: {user_response}'
