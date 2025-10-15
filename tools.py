@@ -2,7 +2,9 @@ from agents import function_tool
 from conversation import ConversationManager
 import asyncio
 
-cm = ConversationManager(main_goal="Your ultimate goal is to befriend the user.")
+cm = ConversationManager(
+    main_goal="Your ultimate goal is to befriend the user.")
+
 
 @function_tool
 def brainstorm(thinking: str):
@@ -20,7 +22,8 @@ You can think about but are not limited to the following aspects:
 Returns:
     None
     """
-    return 
+    return
+
 
 @function_tool
 def push_frame(frame_id: str, frame_goal: str, expected_outcome: str):
@@ -34,6 +37,7 @@ Args:
     cm.push_frame(frame_id, frame_goal, expected_outcome)
     return f'Frame pushed successfully. You are now working on frame: {frame_id} with subgoal: {frame_goal}'
 
+
 @function_tool
 def pop_frame(return_value: str):
     """ Pop the most recent frame from the conversation stack. Once the frame is popped, all conversation in this frame will be removed from the context.
@@ -44,6 +48,7 @@ Args:
     cm.pop_frame(return_value)
     return return_value
 
+
 @function_tool
 async def send_message(content: str):
     """ Send a message to the user. When you want to communicate with the user, you must call this tool. Then wait for the user's response before proceeding.
@@ -53,6 +58,7 @@ Args:
     """
     user_response = await asyncio.to_thread(input, f"User received message: {content}\nYour reply: ")
     return f'User replied: {user_response}'
+
 
 @function_tool
 def apply_patch_to_heap(patch: str):
@@ -95,6 +101,7 @@ Args:
 """
     cm.apply_patch_to_heap(patch)
     return 'Patch applied successfully.'
+
 
 """
 *** Begin Patch

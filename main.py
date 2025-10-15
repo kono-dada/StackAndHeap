@@ -69,13 +69,15 @@ agent = Agent(
     name="Kawaii agent",
     instructions=instructions,
     model=LitellmModel(
-        model='deepseek/deepseek-chat', 
-        api_key=deepseek_api_key, 
+        model='deepseek/deepseek-chat',
+        api_key=deepseek_api_key,
         base_url='https://api.deepseek.com/v1'
     ),
-    tools=[brainstorm, pop_frame, push_frame, send_message, apply_patch_to_heap],
+    tools=[brainstorm, pop_frame, push_frame,
+           send_message, apply_patch_to_heap],
     tool_use_behavior="stop_on_first_tool"
 )
+
 
 async def main():
     while True:
