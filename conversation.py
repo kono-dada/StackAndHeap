@@ -27,9 +27,8 @@ class ConversationManager:
         self.stack.append(Frame(frame_id=frame_id, goal=frame_goal,
                           expected_outcome=expected_outcome, messages=[]))
 
-    """最终状态：弹出最后一个Frame，并把返回值替换掉第一个function_call_output的内容，最后把弹出的frame的第一个function_call和function_call_output都添加到父frame中"""
-
     def pop_frame(self, return_value: str):
+        """最终状态：弹出最后一个Frame，并把返回值替换掉第一个function_call_output的内容，最后把弹出的frame的第一个function_call和function_call_output都添加到父frame中"""
         if len(self.stack) == 1:
             raise ValueError("No frame to pop.")
         top_frame = self.stack.pop() if self.stack else None
