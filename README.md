@@ -12,3 +12,10 @@ flowchart TD
   D -->|"否 → 使用合适的工具"| Tools[调用其它工具] --> D
   D -->|"否 → push_frame"| Push[push_frame] --> B
 ```
+
+## Run
+
+```Bash
+uv sync
+uv run main.py
+```
