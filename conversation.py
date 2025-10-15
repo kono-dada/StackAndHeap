@@ -35,7 +35,7 @@ class ConversationManager:
         self.stack[-1].messages.append(first_function_call_message)
         frame_start_function_call_output = find_the_first_message_of_type(top_frame.messages, 'function_call_output')
         frame_start_function_call_output['output'] = \
-            f'The frame has been over with return_value: {return_value}. You are now working on frame: {self.stack[-1].frame_id}'
+            f'You have terminated the frame with return_value: {return_value}. You are now working on frame: {self.stack[-1].frame_id}'
         self.stack[-1].messages.append(frame_start_function_call_output)
 
     def build_conversation(self) -> List[TResponseInputItem]:

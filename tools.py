@@ -8,6 +8,7 @@ cm = ConversationManager(main_goal="Your ultimate goal is to befriend the user."
 def brainstorm(thinking: str):
     """ Perform brainstorming and self-reflection to generate new ideas or strategies.
     You can think about but are not limited to the following aspects:
+        - What possible stack structure do you have in mind?
         - What is your current mental state or emotion state?
         - What are you going to do to manage your heap? What's the structure of it?
         - What information is needed?
