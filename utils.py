@@ -6,7 +6,7 @@ from agents import TResponseInputItem
 
 def find_the_first_message_of_type(messages: List[TResponseInputItem], msg_type: str) -> TResponseInputItem | None:
     for msg in messages:
-        if msg['type'] == msg_type:
+        if msg['type'] == msg_type: # type: ignore
             return msg
     return None
 
@@ -133,8 +133,8 @@ def apply_patch(patch: str, text: str) -> str:
     def build_context_only(hunk_lines: List[str]) -> List[str]:
         return [strip_prefix(l) for l in hunk_lines if l.startswith(' ')]
 
-    def find_subsequence(hay: List[str], needle: List[str], start: int = 0, end: int = None) -> int:
-        if end is None:
+    def find_subsequence(hay: List[str], needle: List[str], start: int = 0, end: int = -1) -> int:
+        if end == -1:
             end = len(hay)
         if len(needle) == 0:
             return -1
