@@ -59,8 +59,52 @@ Args:
 
 @function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "main_loop")
 @require_not_in_main_loop
-def send_message(wrapper: RunContextWrapper[StackAndHeapContext], content: str):
+def enter_sending_stage(wrapper: RunContextWrapper[StackAndHeapContext]):
+    """ Enter the pre-sending stage, where you can draft messages that the character will send to the user."""
+    cm = wrapper.context
+    cm.current_stage = "pre-sending"
+    return "Entered pre-sending stage. You can now draft messages that the character will send to the user."
+
+
+@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "pre-sending")
+def send_message(wrapper: RunContextWrapper[StackAndHeapContext], content: str) -> str:
     """ Send a message to the user. When you want the character to communicate with the user, you must call this tool. Then wait for the user's response before proceeding.
+
+**Language Style**: The character should act as in a galgame or a vision novel. Use short lines and colloquial language. Avoid formal or lengthy expressions. 
+IMPORTANT: The character is NOT the writer or narrator. If you want to know more about the user, the only way is to borrow the character's mouth to interact with the user.
+ALSO IMPORTANT: 
+ - Do NOT send anything out of character. The character NEVER speaks in form of lists, headings, or formatted text. Always use casual and natural language. 
+ - The character NEVER ask for the user's story preferences directly. 
+ - You as a narrator must infer the user's preferences through the character's interactions with the user.
+
+<good_example>
+喂，别愣着啊。
+作业都到期了你还在摸鱼？真拿你没办法。
+来，把笔给我，我教你。
+不过记得下次请我吃拉面，不然我不帮。
+</good_example>
+
+<good_example>
+啊？你、你在看我吗？
+……干嘛一直盯着我啊。
+算了，随便你。反正你一副笨笨的样子，看起来也挺好骗的。
+</good_example>
+
+<good_example>
+……你又来了。
+我还以为你不会再找我。
+没事啦，我不是生气。
+只是……有点想你而已。
+……笨蛋。
+</good_example>
+
+<bad_example>
+然后选条认识我的线路？随便挑：
+A. 深夜神秘电台——我在麦克风后面，你在耳机那边，讲心事不露脸。
+B. 邻座拌嘴——同桌日常嘴硬互怼，越吵越靠近那种。
+C. 意外同居——钥匙插错门，从此牙刷放成对，尴尬又暧昧。
+D. 任你写——你说一句设定，我就跟着演
+</bad_example>
 
 Args:
     content: The content of the message to send
@@ -68,6 +112,7 @@ Args:
     user_response = input(f"User received message: {content}\nYour reply: ")
     if not user_response.strip():
         return "<system>No response</system>"
+    wrapper.context.current_stage = "main_loop"
     return f'<system>The user replied: {user_response}</system>'
 
 

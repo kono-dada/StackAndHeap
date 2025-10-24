@@ -1,5 +1,5 @@
 from agents import Agent
-from .tools import brainstorm, pop_subtask, start_subtask, send_message, apply_patch_to_note, finish_subtask
+from .tools import brainstorm, pop_subtask, start_subtask, send_message, apply_patch_to_note, finish_subtask, enter_sending_stage
 from .model import model
 from .dynamic_instruction import dynamic_instructions
 
@@ -10,6 +10,6 @@ agent = Agent(
     instructions=dynamic_instructions,
     model=model,
     tools=[brainstorm, pop_subtask, start_subtask,
-           send_message, apply_patch_to_note, finish_subtask],
+           send_message, apply_patch_to_note, finish_subtask, enter_sending_stage],
     tool_use_behavior="stop_on_first_tool"
 )
