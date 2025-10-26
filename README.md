@@ -74,7 +74,44 @@ stackAndHeap/
    ```
    运行后程序会持续进入对话循环，每轮输出智能体新增消息，并把上下文同步到 `logs/conversation.json`。
 
+## CLI 使用指南
+
+### 启动对话循环
+```bash
+python -m stackandheap.cli run [OPTIONS]
+```
+- `--state-path PATH`：显式指定上下文文件；若省略，系统会以全新上下文启动，并在结束后保存到 `logs/conversation.json`。
+- `--max-turns N`：限制执行轮数，常用于快速验证。
+- `--step`：逐回合停顿，按提示输入 `y` 才继续下一轮。
+- `--dry-run`：只打印即将发送给模型的对话 JSON，不触发真实推理。
+
+### 查看子任务栈
+```bash
+python -m stackandheap.cli tasks [--state-path PATH]
+```
+表格展示当前栈中各子任务的 `task_id`、目标、阶段与消息量，便于掌握分工。未指定 `--state-path` 时读取默认日志文件（若不存在则显示空栈）。
+
+### 管理 note
+- 展示 note 当前内容：
+  ```bash
+  python -m stackandheap.cli note show [--state-path PATH] [--note-path PATH]
+  ```
+  指定 `--state-path` 可先加载上下文并确保 note 同步；`--note-path` 默认为 `logs/note.md`。
+- 导出 note 备份：
+  ```bash
+  python -m stackandheap.cli note dump OUTPUT_PATH [--note-path PATH]
+  ```
+
+### 快速查看日志
+```bash
+python -m stackandheap.cli logs [--path PATH] [--lines N]
+```
+对指定的 JSON 日志执行 `tail`，默认展示 `logs/conversation.json` 的最后 50 行，可通过 `--lines` 调整。
+
+> 便捷入口：`python main.py` 也会调用同一 CLI 逻辑，相当于执行 `python -m stackandheap.cli run`。
+
 ## 开发与调试提示
 - 若需要验证 note 补丁语法，可运行 `python test.py` 查看 `apply_patch` 的示例效果。
 - 调试时可将 `StackAndHeapContext.load(...)` 取消注释，以已有日志恢复上下文继续对话，同时直接阅读 `logs/note.md` 快速回顾角色记忆。
 - 项目基于 `openai-agents` 的 `Runner`、`Agent` 与工具装饰器，若需扩展行为，可在 `agent_core/tools.py` 中新增工具或调整阶段逻辑。
+- 若需要自定义 CLI 行为，可在 `stackandheap/cli` 模块中增添命令或调整输出样式。
