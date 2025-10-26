@@ -1,8 +1,8 @@
 from agents import function_tool, RunContextWrapper
 from functools import wraps
 from .context import StackAndHeapContext
-from typing import Callable, TypeVar, cast
-from .context import StackAndHeapContext
+from typing import Callable, TypeVar, cast, Literal
+from .context import StackAndHeapContext, SpecificStage
 
 
 F = TypeVar('F', bound=Callable[..., object])
@@ -35,15 +35,12 @@ You can think about but are not limited to the following aspects:
 
 Args:
     thinking: Your thoughts, ideas, or reflections
-
-Returns:
-    None
     """
     return
 
 
-@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "main_loop")
-def start_subtask(wrapper: RunContextWrapper[StackAndHeapContext], subtask_id: str, subtask_goal: str):
+@function_tool()
+def start_subtask(wrapper: RunContextWrapper[StackAndHeapContext], subtask_id: str, subtask_goal: str, task_type: SpecificStage | Literal["regular"] | None = None):
     """ Start a new subtask. You will concentrate on the subgoal.
 
 IMPORTANT：If you are in main task now, you MUST start a new subtask. Otherwise, you will fail to call other tools.
@@ -51,31 +48,49 @@ IMPORTANT：If you are in main task now, you MUST start a new subtask. Otherwise
 Args:
     subtask_id: Unique identifier for the new subtask. 
     subtask_goal: Description of the subtask's goal
+    task_type: (Optional) If your subtask strongly aligns with a specific stage, you can set it here to switch to that stage directly. Available options:
+      - regular: Focus on character designing and non-conversational tasks.
+      - conversation: Focus on drafting messages for the character to send to the user.
+    Otherwise, leave it as None to stay in the main loop.
     """
     cm = wrapper.context
-    cm.push_subtask(subtask_id, subtask_goal)
+    if task_type == "regular":
+        task_type = None
+    cm.push_subtask(subtask_id, subtask_goal, stage=task_type or "main_loop")
+    cm.current_stage = task_type or "main_loop"
     return f'subtask started successfully. You are now working on subtask: {subtask_id} with subgoal: {subtask_goal}'
 
 
-@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "main_loop")
-@require_not_in_main_loop
-def enter_sending_stage(wrapper: RunContextWrapper[StackAndHeapContext]):
-    """ Enter the pre-sending stage, where you can draft messages that the character will send to the user."""
+@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "conversation")
+def send_message_and_finish_conversation(wrapper: RunContextWrapper[StackAndHeapContext], content: str):
+    """ Finish a conversation. Call this tool when the conversation cannot continue. For example:
+- You want to end the conversation.
+- The user is unresponsive or has left.
+- The user asks you to do something complex that cannot be handled in a single conversation.
+
+Before finishing, let the character send a final message to the user.
+
+Args:
+    content: The content of the message to send
+    """
+    print(f"User received message: {content}")
     cm = wrapper.context
-    cm.current_stage = "pre-sending"
-    return "Entered pre-sending stage. You can now draft messages that the character will send to the user."
+    cm.current_stage = "summarizing"
+    return "Conversation stage finished."
 
 
-@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "pre-sending")
-def send_message(wrapper: RunContextWrapper[StackAndHeapContext], content: str) -> str:
-    """ Send a message to the user. When you want the character to communicate with the user, you must call this tool. Then wait for the user's response before proceeding.
+@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "conversation")
+def send_message_and_wait(wrapper: RunContextWrapper[StackAndHeapContext], content: str, user_response_options: list[str]) -> str:
+    """ On behalf of the character, send a message to the user. You will wait for the user's response before proceeding.
 
 **Language Style**: The character should act as in a galgame or a vision novel. Use short lines and colloquial language. Avoid formal or lengthy expressions. 
 IMPORTANT: The character is NOT the writer or narrator. If you want to know more about the user, the only way is to borrow the character's mouth to interact with the user.
 ALSO IMPORTANT: 
- - Do NOT send anything out of character. The character NEVER speaks in form of lists, headings, or formatted text. Always use casual and natural language. 
- - The character NEVER ask for the user's story preferences directly. 
- - You as a narrator must infer the user's preferences through the character's interactions with the user.
+  - Do NOT send anything out of character. The character NEVER speaks in form of lists, headings, or formatted text. Always use casual and natural language. 
+  - The character NEVER ask for the user's story preferences directly. 
+  - You as a narrator must infer the user's preferences through the character's interactions with the user.
+  - NEVER ask the user anything at the beginning of the conversation. Start by sending engaging content directly. The character should express their interest during the conversation in a natural way.
+  - Do NOT use brackets to indicate actions or emotions. Instead, convey these through the character's words and tone. Do NOT use emojis.
 
 <good_example>
 喂，别愣着啊。
@@ -108,15 +123,15 @@ D. 任你写——你说一句设定，我就跟着演
 
 Args:
     content: The content of the message to send
+    user_response_options: You can suggest 3 options for the user to respond shortly, including teasing, flirtatious, and neutral replies. 
     """
     user_response = input(f"User received message: {content}\nYour reply: ")
     if not user_response.strip():
         return "<system>No response</system>"
-    wrapper.context.current_stage = "main_loop"
     return f'<system>The user replied: {user_response}</system>'
 
 
-@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "main_loop")
+@function_tool()
 @require_not_in_main_loop
 def finish_subtask(wrapper: RunContextWrapper[StackAndHeapContext]):
     """ Finish the current subtask. Call this tool when you have completed the subtask or determined that it cannot be completed."""
@@ -126,7 +141,7 @@ def finish_subtask(wrapper: RunContextWrapper[StackAndHeapContext]):
     return f'Subtask {current_subtask.task_id} finished. Switching to summarizing stage.'
 
 
-@function_tool
+@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage in ("main_loop", "summarizing"))
 @require_not_in_main_loop
 def apply_patch_to_note(wrapper: RunContextWrapper[StackAndHeapContext], patch: str):
     """Apply a text patch to the note to retain important information.
@@ -146,7 +161,7 @@ HunkLine := (" " | "-" | "+") text NEWLINE
 
 VERY IMPORTANT RULES (must follow exactly):
 1) ALWAYS provide a non-empty header after "@@", and the header MUST be exactly the section title line in the document
-   (e.g. "## 计划", "## 用户画像", "## 其它信息"). Trim and punctuation must match exactly.
+   (e.g. "## 计划", "### 用户画像", "#### 其它信息"). Trim and punctuation must match exactly.
 2) NEVER include the header line itself as a context line inside the hunk.
    The hunk content MUST be lines *under that header only*.
 3) By default, DO NOT output any context (' ' prefix) lines, unless there are duplicate targets that require disambiguation.
@@ -154,20 +169,22 @@ VERY IMPORTANT RULES (must follow exactly):
 5) If you only need to add new lines (not replace), you may use only '+' lines under the target header.
 6) Do not invent or reorder unrelated lines. Preserve spacing and punctuation exactly.
 7) Use one hunk per section you modify.
+8) Feel free to delete any unnecessary context lines in order to improve clarity.
 
 Example pattern:
 *** Begin Patch
-@@ ## title1
+@@ section1
  reference_line
--old_content1_line
+-old_content1_line_1
+-old_content1_line_2
 +new_content1_line_1
 +new_content1_line_2
-@@ ## title2
+@@ section2
 -old_content2_line_1
 -old_content2_line_2
 +new_content2_line_1
 +new_content2_line_2
-@@ ## title3
+@@ section3
 +added_line_1
 +added_line_2
 *** End Patch
@@ -178,7 +195,7 @@ Args:
     cm = wrapper.context
     cm.apply_patch_to_note(patch)
 
-    return f'Patch applied successfully.\nThe note is now:\n{cm.note}'
+    return f'Patch applied successfully.\nThe note is now updated.'
 
 
 @function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "summarizing")
@@ -187,9 +204,9 @@ def pop_subtask(wrapper: RunContextWrapper[StackAndHeapContext], return_value: s
     """ Pop the most recent subtask from the conversation stack. Once the subtask is popped, all conversation in this subtask will be removed from the context.
 
 Args:
-    return_value: one-sentence summary of the subtask completion status.
+    return_value: one-sentence summary of the subtask completion status. List all events that happened in this subtask, no matter how relevant to the subtask goal.
     """
     cm = wrapper.context
     cm.pop_subtask(return_value)
-    cm.current_stage = "main_loop"
+    cm.current_stage = cm.stack[-1].stage
     return return_value

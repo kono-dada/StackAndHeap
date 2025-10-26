@@ -1,7 +1,9 @@
-from agent import agent, StackAndHeapContext
-from agents import Runner, RunResult
+from agent_core import agent, StackAndHeapContext
+from agents import Runner, RunResult, set_trace_processors
 from pprint import pprint
 import asyncio
+
+set_trace_processors([])
 
 
 async def main():

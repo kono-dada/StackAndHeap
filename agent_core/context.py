@@ -6,38 +6,47 @@ from .utils import find_the_first_message_of_type, apply_patch
 from pydantic import BaseModel, Field
 import os
 
+SpecificStage = Literal["conversation"]
+Stage = SpecificStage | Literal["summarizing", "main_loop"]
+
 
 class Subtask(BaseModel):
     task_id: str = "main"
     goal: str = "main"
     messages: List[TResponseInputItem] = Field(default_factory=list)
+    stage: Stage = "main_loop"
 
 
 DEFAULT_note = \
     """# note
-## 角色细节设定
-> 这块区域用于存储角色的细节设定，包括但不限于姓名、性别、外貌、性格、兴趣爱好、背景故事等信息。这些信息可以帮助你更好地扮演角色，并与用户进行互动。
-empty for now
 
-## 角色当前心流
-> 这块区域用于存储角色的当前心流状态，包括但不限于情绪、动机、目标等信息。这些信息可以帮助你更好地理解角色的行为和反应。
-empty for now
+## 你的工作记录
 
-## 用户画像
+### 一句话概括当前状况
+> 这块区域用于存储你当前的工作状况的简要概述，帮助你快速回顾和理解当前的任务进展。最好频繁修改这里。
+首次来到用户的电脑中。
+
+### 用户画像
 > 这块区域用于存储用户的画像信息，包括但不限于用户的兴趣、偏好、背景故事等。这些信息可以帮助你更好地理解用户，并与其进行互动。
-empty for now
 
-## 计划
+### 计划
 > 这块区域用于存储你当前的计划，包括子目标、下一步和任何相关的上下文信息。
-empty for now
 
-## 近期详细互动
+---
+
+## 角色状态
+
+### 角色细节设定
+> 这块区域用于存储角色的细节设定，包括但不限于姓名、性别、外貌、性格、兴趣爱好、背景故事等信息。
+
+### 角色当前心流
+> 这块区域用于存储角色的当前心流状态，包括但不限于情绪、动机、目标等信息。这些信息可以帮助你更好地理解角色的行为和反应。
+
+### 近期详细互动
 > 这块区域用于存储**确切的引用**或来自先前对话或外部来源的参考，以便你在稍后需要时可以引用。
-empty for now
 
-## 角色故事
-> 为角色编写故事。使用童话般的语言风格，注重细节和角色心理描写。创作故事是为了丰富角色的背景，使其更具深度和吸引力，并在与用户交谈中提供谈资。
-empty for now
+### 角色故事
+> 为角色编写故事，注重细节和角色心理描写。创作故事是为了丰富角色的背景，使其更具深度和吸引力，并在与用户交谈中提供谈资。
 
 """
 
@@ -45,13 +54,15 @@ empty for now
 class StackAndHeapContext(BaseModel):
     stack: List[Subtask] = [Subtask()]
     note: str = DEFAULT_note
-    current_stage: Literal["main_loop", "summarizing", "pre-sending"] = "main_loop"
+    current_stage: Stage = "main_loop"
     chat_history: List[TResponseInputItem] = Field(default_factory=list)
 
     def save(self, path: str) -> None:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             f.write(self.model_dump_json(indent=2))
+        with open(os.path.dirname(path) + '/note.md', "w", encoding="utf-8") as f:
+            f.write(self.note)
 
     @classmethod
     def load(cls, path: str) -> 'StackAndHeapContext':
@@ -59,9 +70,9 @@ class StackAndHeapContext(BaseModel):
             data = json.load(f)
         return cls.model_validate(data)
 
-    def push_subtask(self, subtask_id: str, subtask_goal: str):
+    def push_subtask(self, subtask_id: str, subtask_goal: str, stage: Stage):
         self.stack.append(Subtask(task_id=subtask_id,
-                          goal=subtask_goal, messages=[]))
+                          goal=subtask_goal, messages=[], stage=stage))
 
     def pop_subtask(self, return_value: str):
         """弹出最后一个subtask"""
