@@ -26,8 +26,7 @@ def brainstorm(wrapper: RunContextWrapper[StackAndHeapContext], thinking: str):
     """ Perform brainstorming and self-reflection to generate new ideas or strategies.
 You can think about but are not limited to the following aspects:
     - What possible stack structure do you have in mind?
-    - What is the current mental state or emotion state?
-    - What are you going to do to manage your note? What's the structure of it?
+    - What is the character's current mental state or emotion state?
     - What else information is needed?
     - What theories or methods can be applied?
     - What to do next?
@@ -41,7 +40,7 @@ Args:
 
 
 @function_tool()
-def start_subtask(wrapper: RunContextWrapper[StackAndHeapContext], subtask_id: str, subtask_goal: str, task_type: SpecificStage | Literal["regular"] | None = None):
+def start_subtask(wrapper: RunContextWrapper[StackAndHeapContext], subtask_id: str, subtask_goal: str, task_type: SpecificStage| Literal["regular"] | None = None):
     """ Start a new subtask. You will concentrate on the subgoal.
 
 IMPORTANT：If you are in main task now, you MUST start a new subtask. Otherwise, you will fail to call other tools.
@@ -50,15 +49,14 @@ Args:
     subtask_id: Unique identifier for the new subtask. 
     subtask_goal: Description of the subtask's goal
     task_type: (Optional) If your subtask strongly aligns with a specific stage, you can set it here to switch to that stage directly. Available options:
-      - regular: Focus on character designing and non-conversational tasks.
+      - regular: Focus on character designing or non-conversational tasks.
       - conversation: Focus on drafting messages for the character to send to the user.
     Otherwise, leave it as None to stay in the main loop.
     """
     cm = wrapper.context
-    if task_type == "regular":
-        task_type = None
-    cm.push_subtask(subtask_id, subtask_goal, stage=task_type or "main_loop")
-    cm.current_stage = task_type or "main_loop"
+    stage = task_type or "regular"
+    cm.push_subtask(subtask_id, subtask_goal, stage=stage)
+    cm.current_stage = stage
     return f'subtask started successfully. You are now working on subtask: {subtask_id} with subgoal: {subtask_goal}'
 
 
@@ -149,7 +147,7 @@ def finish_subtask(wrapper: RunContextWrapper[StackAndHeapContext]):
     return f'Subtask {current_subtask.task_id} finished. Switching to summarizing stage.'
 
 
-@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage in ("main_loop", "summarizing"))
+@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage in ("regular", "summarizing"))
 @require_not_in_main_loop
 def apply_patch_to_note(wrapper: RunContextWrapper[StackAndHeapContext], patch: str):
     """Apply a text patch to the note to retain important information.

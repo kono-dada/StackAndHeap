@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 import os
 
 SpecificStage = Literal["conversation"]
-Stage = SpecificStage | Literal["summarizing", "main_loop"]
+Stage = SpecificStage | Literal["summarizing", "regular"]
 
 note_template_path = os.getenv(
     "SAH_NOTE_TEMPLATE_PATH", "examples/note_template.md")
@@ -19,13 +19,13 @@ class Subtask(BaseModel):
     task_id: str = "main"
     goal: str = "main"
     messages: List[TResponseInputItem] = Field(default_factory=list)
-    stage: Stage = "main_loop"
+    stage: Stage = "regular"
 
 
 class StackAndHeapContext(BaseModel):
     stack: List[Subtask] = [Subtask()]
     note: str = NOTE_TEMPLATE
-    current_stage: Stage = "main_loop"
+    current_stage: Stage = "regular"
     chat_history: List[TResponseInputItem] = Field(default_factory=list)
 
     def save(self, path: str) -> None:

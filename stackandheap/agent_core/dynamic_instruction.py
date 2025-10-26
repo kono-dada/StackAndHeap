@@ -30,7 +30,7 @@ NOTES:
 def dynamic_instructions(context: RunContextWrapper[StackAndHeapContext], agent: Agent[StackAndHeapContext]) -> str:
     cm = context.context
     match cm.current_stage:
-        case "main_loop":
+        case "regular":
             return main_agent_instructions(cm)
         case "summarizing":
             return subtask_summarizer_instructions(cm)
