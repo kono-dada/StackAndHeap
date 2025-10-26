@@ -9,6 +9,11 @@ import os
 SpecificStage = Literal["conversation"]
 Stage = SpecificStage | Literal["summarizing", "main_loop"]
 
+note_template_path = os.getenv(
+    "SAH_NOTE_TEMPLATE_PATH", "examples/note_template.md")
+with open(note_template_path, "r", encoding="utf-8") as f:
+    NOTE_TEMPLATE = f.read()
+
 
 class Subtask(BaseModel):
     task_id: str = "main"
@@ -17,43 +22,9 @@ class Subtask(BaseModel):
     stage: Stage = "main_loop"
 
 
-DEFAULT_note = \
-    """# note
-
-## 你的工作记录
-
-### 一句话概括当前状况
-> 这块区域用于存储你当前的工作状况的简要概述，帮助你快速回顾和理解当前的任务进展。最好频繁修改这里。
-首次来到用户的电脑中。
-
-### 用户画像
-> 这块区域用于存储用户的画像信息，包括但不限于用户的兴趣、偏好、背景故事等。这些信息可以帮助你更好地理解用户，并与其进行互动。
-
-### 计划
-> 这块区域用于存储你当前的计划，包括子目标、下一步和任何相关的上下文信息。
-
----
-
-## 角色状态
-
-### 角色细节设定
-> 这块区域用于存储角色的细节设定，包括但不限于姓名、性别、外貌、性格、兴趣爱好、背景故事等信息。
-
-### 角色当前心流
-> 这块区域用于存储角色的当前心流状态，包括但不限于情绪、动机、目标等信息。这些信息可以帮助你更好地理解角色的行为和反应。
-
-### 近期详细互动
-> 这块区域用于存储**确切的引用**或来自先前对话或外部来源的参考，以便你在稍后需要时可以引用。
-
-### 角色故事
-> 为角色编写故事，注重细节和角色心理描写。创作故事是为了丰富角色的背景，使其更具深度和吸引力，并在与用户交谈中提供谈资。
-
-"""
-
-
 class StackAndHeapContext(BaseModel):
     stack: List[Subtask] = [Subtask()]
-    note: str = DEFAULT_note
+    note: str = NOTE_TEMPLATE
     current_stage: Stage = "main_loop"
     chat_history: List[TResponseInputItem] = Field(default_factory=list)
 

@@ -1,9 +1,11 @@
 from agents import Agent, RunContextWrapper
 from .context import StackAndHeapContext
+import os
+import frontmatter
 
-
-NAME = '小机灵鬼型示例'
-SEX = 'female'
+basic_character_settings_path = os.getenv("SAH_BASIC_CHARACTER_SETTINGS_PATH", "examples/basic_character_settings.md")
+settings = frontmatter.load(basic_character_settings_path)
+NAME = settings.metadata['NAME']
 
 general = f"""<role>
 你是一位细腻缜密的剧本作家。有丰富的经验为Galgame、vision novel创作剧情与角色台词。擅长推测用户的兴趣与偏好调整自己的写作风格与内容。
@@ -11,14 +13,11 @@ general = f"""<role>
 </role>
 
 <character>
-角色的名字叫{NAME}。性别是{SEX}。
-{NAME}居住在用户的电脑中。
-{NAME}是作为一个示例型AI角色被创建的，目的是为了和用户对话。{NAME}对世界有基本的常识。
-{NAME}有很强的个性，擅长说出让用户感到意外的话。{NAME}喜欢主导对话。
+{settings.content.format(NAME=NAME)}
 </character>
 
 <goal>
-你需要构思合理且有趣的设定、场景、剧情，像创作Galgame一样为角色安排对话。
+你需要构思合理且有趣的设定、场景、剧情，为角色安排对话。
 你的最终目标是根据上面的基本设定发展这个角色，丰富它的设定与记忆，使其经与用户一同经历故事。
 故事需要与用户画像紧密结合。需要让用户感受到角色对他的了解与关注，从而激发用户的兴趣与共鸣。
 你需要擅长造梗，让用户感到惊喜。
@@ -79,7 +78,7 @@ flowchart TD
 
 <notes>
 - 角色与用户对话时使用中文
-- 当消息被包裹在<system></system>标签内时，表示这是系统消息，并不是用户对{NAME}发送的消息。所有用户给{NAME}发送的消息都会经由系统以"The user replied: "的形式转告给你。
+- 当消息被包裹在<system></system>标签内时，表示这是系统消息，并不是用户对角色发送的消息。所有用户给角色发送的消息都会经由系统以"The user replied: "的形式转告给你。
 </notes>
 """
 

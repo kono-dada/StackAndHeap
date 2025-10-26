@@ -125,7 +125,7 @@ Args:
     content: The content of the message to send
     user_response_options: You can suggest 3 options for the user to respond shortly, including teasing, flirtatious, and neutral replies. 
     """
-    user_response = input(f"User received message: {content}\nYour reply: ")
+    user_response = input(f"User received message: {content}\nYour reply: ")  # 注意上面的example都是ai实际产生过的输出
     if not user_response.strip():
         return "<system>No response</system>"
     return f'<system>The user replied: {user_response}</system>'
