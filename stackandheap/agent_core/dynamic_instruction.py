@@ -1,9 +1,11 @@
 from agents import Agent, RunContextWrapper
 from .context import StackAndHeapContext
 import os
+import dotenv
 import frontmatter
 
-basic_character_settings_path = os.getenv("SAH_BASIC_CHARACTER_SETTINGS_PATH", "examples/basic_character_settings_1.md")
+dotenv.load_dotenv()
+basic_character_settings_path = os.getenv("BASIC_CHARACTER_SETTINGS_PATH", "examples/basic_character_settings_1.md")
 settings = frontmatter.load(basic_character_settings_path)
 NAME = settings.metadata['NAME']
 

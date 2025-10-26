@@ -5,12 +5,14 @@ from agents import TResponseInputItem
 from .utils import find_the_first_message_of_type, apply_patch
 from pydantic import BaseModel, Field
 import os
+import dotenv
 
 SpecificStage = Literal["conversation"]
 Stage = SpecificStage | Literal["summarizing", "regular"]
 
+dotenv.load_dotenv()
 note_template_path = os.getenv(
-    "SAH_NOTE_TEMPLATE_PATH", "examples/note_template.md")
+    "NOTE_TEMPLATE_PATH", "examples/note_template.md")
 with open(note_template_path, "r", encoding="utf-8") as f:
     NOTE_TEMPLATE = f.read()
 
