@@ -18,6 +18,7 @@ from stackandheap.agent_core import StackAndHeapContext, agent
 from .utils import (
     DEFAULT_STATE_PATH,
     build_stack_table,
+    display_character_message,
     load_context,
     prompt_continue,
     prompt_user_reply,
@@ -26,7 +27,7 @@ from .utils import (
 )
 
 
-def _parse_user_event(output: Any) -> Optional[dict[str, Any]]:
+def _parse_interaction_event(output: Any) -> Optional[dict[str, Any]]:
     if not isinstance(output, str):
         return None
     try:
@@ -35,14 +36,19 @@ def _parse_user_event(output: Any) -> Optional[dict[str, Any]]:
         return None
     if not isinstance(data, dict):
         return None
-    if data.get("type") != "await_user":
+    event_type = data.get("type")
+    if event_type not in {"await_user", "display_message"}:
         return None
     content = str(data.get("content", ""))
-    raw_options = data.get("options") or []
-    if not isinstance(raw_options, (list, tuple)):
-        raw_options = []
-    options = [str(item) for item in raw_options]
-    return {"content": content, "options": options}
+    event: dict[str, Any] = {"type": event_type, "content": content}
+    if event_type == "await_user":
+        raw_options = data.get("options") or []
+        if not isinstance(raw_options, (list, tuple)):
+            raw_options = []
+        event["options"] = [str(item) for item in raw_options]
+    if event_type == "display_message":
+        event["final"] = bool(data.get("final"))
+    return event
 
 
 async def _run_loop(
@@ -82,17 +88,25 @@ async def _run_loop(
         for item in result.new_items:
             message = item.to_input_item()
             if message.get("type") == "function_call_output":
-                event = _parse_user_event(message.get("output"))
+                event = _parse_interaction_event(message.get("output"))
                 if event is not None:
-                    user_reply = await prompt_user_reply(
-                        console,
-                        content=event["content"],
-                        options=event["options"],
-                    )
-                    if user_reply is None:
-                        message["output"] = "<system>No response</system>" # type: ignore
-                    else:
-                        message["output"] = f'<system>The user replied: {user_reply}</system>' # type: ignore
+                    if event["type"] == "await_user":
+                        user_reply = await prompt_user_reply(
+                            console,
+                            content=event["content"],
+                            options=event.get("options", []),
+                        )
+                        if user_reply is None:
+                            message["output"] = "<system>No response</system>"  # type: ignore
+                        else:
+                            message["output"] = f'<system>The user replied: {user_reply}</system>'  # type: ignore
+                    elif event["type"] == "display_message":
+                        display_character_message(console, event["content"])
+                        if event.get("final"):
+                            message["output"] = f'<system>Conversation stage finished. Final message delivered:\n{event["content"]}</system>'  # type: ignore
+                            console.print("[green]对话阶段已结束，已切换到总结流程。[/green]")
+                        else:
+                            message["output"] = f'<system>Displayed message: {event["content"]}</system>'  # type: ignore
             new_messages.append(message)
 
         render_messages(console, new_messages, title="新增消息") # type: ignore

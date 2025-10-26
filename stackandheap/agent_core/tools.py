@@ -74,10 +74,14 @@ Before finishing, let the character send a final message to the user.
 Args:
     content: The content of the message to send
     """
-    print(f"User received message: {content}")
     cm = wrapper.context
     cm.current_stage = "summarizing"
-    return "Conversation stage finished."
+    event = {
+        "type": "display_message",
+        "content": content,
+        "final": True,
+    }
+    return json.dumps(event, ensure_ascii=False)
 
 
 @function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "conversation")

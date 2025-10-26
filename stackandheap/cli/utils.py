@@ -105,10 +105,15 @@ def prompt_continue(console: Console) -> bool:
     return answer.strip().lower() in {"y", "yes"}
 
 
-async def prompt_user_reply(console: Console, content: str, options: Sequence[str]) -> Optional[str]:
-    """展示角色消息并获取用户输入。返回 None 表示不回复。"""
+def display_character_message(console: Console, content: str) -> None:
+    """仅展示角色消息，不要求用户输入。"""
     console.rule("[magenta]角色来信[/magenta]")
     console.print(Panel(Text(content), title="角色台词", expand=False))
+
+
+async def prompt_user_reply(console: Console, content: str, options: Sequence[str]) -> Optional[str]:
+    """展示角色消息并获取用户输入。返回 None 表示不回复。"""
+    display_character_message(console, content)
 
     if options:
         table = Table(title="推荐短句", expand=False, show_edge=False, show_header=False)
