@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import typer
 from agents import Runner, RunResult, set_trace_processors
@@ -20,9 +20,29 @@ from .utils import (
     build_stack_table,
     load_context,
     prompt_continue,
+    prompt_user_reply,
     render_messages,
     save_context,
 )
+
+
+def _parse_user_event(output: Any) -> Optional[dict[str, Any]]:
+    if not isinstance(output, str):
+        return None
+    try:
+        data = json.loads(output)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    if data.get("type") != "await_user":
+        return None
+    content = str(data.get("content", ""))
+    raw_options = data.get("options") or []
+    if not isinstance(raw_options, (list, tuple)):
+        raw_options = []
+    options = [str(item) for item in raw_options]
+    return {"content": content, "options": options}
 
 
 async def _run_loop(
@@ -58,7 +78,23 @@ async def _run_loop(
             console.print(f"[red]运行异常：{exc}[/red]")
             break
 
-        new_messages = [item.to_input_item() for item in result.new_items]
+        new_messages = []
+        for item in result.new_items:
+            message = item.to_input_item()
+            if message.get("type") == "function_call_output":
+                event = _parse_user_event(message.get("output"))
+                if event is not None:
+                    user_reply = await prompt_user_reply(
+                        console,
+                        content=event["content"],
+                        options=event["options"],
+                    )
+                    if user_reply is None:
+                        message["output"] = "<system>No response</system>" # type: ignore
+                    else:
+                        message["output"] = f'<system>The user replied: {user_reply}</system>' # type: ignore
+            new_messages.append(message)
+
         render_messages(console, new_messages, title="新增消息") # type: ignore
 
         ctx.add_messages(new_messages)

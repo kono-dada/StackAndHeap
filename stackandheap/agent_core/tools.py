@@ -1,7 +1,8 @@
 from agents import function_tool, RunContextWrapper
 from functools import wraps
-from .context import StackAndHeapContext
-from typing import Callable, TypeVar, cast, Literal
+import json
+from typing import Callable, Literal, TypeVar, cast
+
 from .context import StackAndHeapContext, SpecificStage
 
 
@@ -91,6 +92,7 @@ ALSO IMPORTANT:
   - You as a narrator must infer the user's preferences through the character's interactions with the user.
   - NEVER ask the user anything at the beginning of the conversation. Start by sending engaging content directly. The character should express their interest during the conversation in a natural way.
   - Do NOT use brackets to indicate actions or emotions. Instead, convey these through the character's words and tone. Do NOT use emojis.
+  - Do NOT assume the user is doing something unless you have confident evidence from prior interactions.
 
 <good_example>
 喂，别愣着啊。
@@ -125,10 +127,12 @@ Args:
     content: The content of the message to send
     user_response_options: You can suggest 3 options for the user to respond shortly, including teasing, flirtatious, and neutral replies. 
     """
-    user_response = input(f"User received message: {content}\nYour reply: ")  # 注意上面的example都是ai实际产生过的输出
-    if not user_response.strip():
-        return "<system>No response</system>"
-    return f'<system>The user replied: {user_response}</system>'
+    event = {
+        "type": "await_user",
+        "content": content,
+        "options": user_response_options,
+    }
+    return json.dumps(event, ensure_ascii=False)
 
 
 @function_tool()
