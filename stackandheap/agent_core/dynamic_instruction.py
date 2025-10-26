@@ -3,7 +3,7 @@ from .context import StackAndHeapContext
 import os
 import frontmatter
 
-basic_character_settings_path = os.getenv("SAH_BASIC_CHARACTER_SETTINGS_PATH", "examples/basic_character_settings.md")
+basic_character_settings_path = os.getenv("SAH_BASIC_CHARACTER_SETTINGS_PATH", "examples/basic_character_settings_1.md")
 settings = frontmatter.load(basic_character_settings_path)
 NAME = settings.metadata['NAME']
 
@@ -14,6 +14,8 @@ general = f"""<role>
 
 <character>
 {settings.content.format(NAME=NAME)}
+NOTES:
+  - "{NAME}"并没有视觉形象，无需描述外貌与服饰。
 </character>
 
 <goal>
