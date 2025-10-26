@@ -165,7 +165,7 @@ HunkLine := (" " | "-" | "+") text NEWLINE
 
 VERY IMPORTANT RULES (must follow exactly):
 1) ALWAYS provide a non-empty header after "@@", and the header MUST be exactly the section title line in the document
-   (e.g. "## 计划", "### 用户画像", "#### 其它信息"). Trim and punctuation must match exactly.
+   (e.g. "## 计划", "### 用户画像", "#### 其它信息"). Trim and punctuation must match exactly. Dot not forget the leading hashes.
 2) NEVER include the header line itself as a context line inside the hunk.
    The hunk content MUST be lines *under that header only*.
 3) By default, DO NOT output any context (' ' prefix) lines, unless there are duplicate targets that require disambiguation.
@@ -177,18 +177,18 @@ VERY IMPORTANT RULES (must follow exactly):
 
 Example pattern:
 *** Begin Patch
-@@ section1
+@@ ## section1
  reference_line
 -old_content1_line_1
 -old_content1_line_2
 +new_content1_line_1
 +new_content1_line_2
-@@ section2
+@@ ### section2
 -old_content2_line_1
 -old_content2_line_2
 +new_content2_line_1
 +new_content2_line_2
-@@ section3
+@@ #### section3
 +added_line_1
 +added_line_2
 *** End Patch
