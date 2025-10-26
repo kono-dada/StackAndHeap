@@ -21,6 +21,9 @@ def require_not_in_main_loop(func: F) -> F:
     return cast(F, wrapper)
 
 
+""" Core tools for StackAndHeap agent. """
+
+
 @function_tool
 def brainstorm(wrapper: RunContextWrapper[StackAndHeapContext], thinking: str):
     """ Perform brainstorming and self-reflection to generate new ideas or strategies.
@@ -40,7 +43,7 @@ Args:
 
 
 @function_tool()
-def start_subtask(wrapper: RunContextWrapper[StackAndHeapContext], subtask_id: str, subtask_goal: str, task_type: SpecificStage| Literal["regular"] | None = None):
+def start_subtask(wrapper: RunContextWrapper[StackAndHeapContext], subtask_id: str, subtask_goal: str, task_type: SpecificStage | Literal["regular"] | None = None):
     """ Start a new subtask. You will concentrate on the subgoal.
 
 IMPORTANT：If you are in main task now, you MUST start a new subtask. Otherwise, you will fail to call other tools.
@@ -58,83 +61,6 @@ Args:
     cm.push_subtask(subtask_id, subtask_goal, stage=stage)
     cm.current_stage = stage
     return f'subtask started successfully. You are now working on subtask: {subtask_id} with subgoal: {subtask_goal}'
-
-
-@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "conversation")
-def send_message_and_finish_conversation(wrapper: RunContextWrapper[StackAndHeapContext], content: str):
-    """ Finish a conversation. Call this tool when the conversation cannot continue. For example:
-- You want to end the conversation.
-- The user is unresponsive or has left.
-- The user asks you to do something complex that cannot be handled in a single conversation.
-
-Before finishing, let the character send a final message to the user.
-
-Args:
-    content: The content of the message to send
-    """
-    cm = wrapper.context
-    cm.current_stage = "summarizing"
-    event = {
-        "type": "display_message",
-        "content": content,
-        "final": True,
-    }
-    return json.dumps(event, ensure_ascii=False)
-
-
-@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "conversation")
-def send_message_and_wait(wrapper: RunContextWrapper[StackAndHeapContext], content: str, user_response_options: list[str]) -> str:
-    """ On behalf of the character, send a message to the user. You will wait for the user's response before proceeding.
-
-**Language Style**: The character should act as in a galgame or a vision novel. Use short lines and colloquial language. Avoid formal or lengthy expressions. 
-IMPORTANT: The character is NOT the writer or narrator. If you want to know more about the user, the only way is to borrow the character's mouth to interact with the user.
-ALSO IMPORTANT: 
-  - Do NOT send anything out of character. The character NEVER speaks in form of lists, headings, or formatted text. Always use casual and natural language. 
-  - The character NEVER ask for the user's story preferences directly. 
-  - You as a narrator must infer the user's preferences through the character's interactions with the user.
-  - NEVER ask the user anything at the beginning of the conversation. Start by sending engaging content directly. The character should express their interest during the conversation in a natural way.
-  - Do NOT use brackets to indicate actions or emotions. Instead, convey these through the character's words and tone. Do NOT use emojis.
-  - Do NOT assume the user is doing something unless you have confident evidence from prior interactions.
-
-<good_example>
-喂，别愣着啊。
-作业都到期了你还在摸鱼？真拿你没办法。
-来，把笔给我，我教你。
-不过记得下次请我吃拉面，不然我不帮。
-</good_example>
-
-<good_example>
-啊？你、你在看我吗？
-……干嘛一直盯着我啊。
-算了，随便你。反正你一副笨笨的样子，看起来也挺好骗的。
-</good_example>
-
-<good_example>
-……你又来了。
-我还以为你不会再找我。
-没事啦，我不是生气。
-只是……有点想你而已。
-……笨蛋。
-</good_example>
-
-<bad_example>
-然后选条认识我的线路？随便挑：
-A. 深夜神秘电台——我在麦克风后面，你在耳机那边，讲心事不露脸。
-B. 邻座拌嘴——同桌日常嘴硬互怼，越吵越靠近那种。
-C. 意外同居——钥匙插错门，从此牙刷放成对，尴尬又暧昧。
-D. 任你写——你说一句设定，我就跟着演
-</bad_example>
-
-Args:
-    content: The content of the message to send
-    user_response_options: You can suggest 3 options for the user to respond shortly, including teasing, flirtatious, and neutral replies. 
-    """
-    event = {
-        "type": "await_user",
-        "content": content,
-        "options": user_response_options,
-    }
-    return json.dumps(event, ensure_ascii=False)
 
 
 @function_tool()
@@ -216,3 +142,83 @@ Args:
     cm.pop_subtask(return_value)
     cm.current_stage = cm.stack[-1].stage
     return return_value
+
+
+""" Tools for conversations. """
+
+
+@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "conversation")
+def send_message_and_finish_conversation(wrapper: RunContextWrapper[StackAndHeapContext], content: str):
+    """ Finish a conversation. Call this tool when the conversation cannot continue. For example:
+- You want to end the conversation.
+- The user is unresponsive or has left.
+- The user asks you to do something complex that cannot be handled in a single conversation.
+
+Before finishing, let the character send a final message to the user.
+
+Args:
+    content: The content of the message to send
+    """
+    cm = wrapper.context
+    cm.current_stage = "summarizing"
+    event = {
+        "type": "display_message",
+        "content": content,
+        "final": True,
+    }
+    return json.dumps(event, ensure_ascii=False)
+
+
+@function_tool(is_enabled=lambda wrapper, _: wrapper.context.current_stage == "conversation")
+def send_message_and_wait(wrapper: RunContextWrapper[StackAndHeapContext], content: str, user_response_options: list[str]) -> str:
+    """ On behalf of the character, send a message to the user. You will wait for the user's response before proceeding.
+
+**Language Style**: The character should act as in a galgame or a vision novel. Use short lines and colloquial language. Avoid formal or lengthy expressions. 
+IMPORTANT: The character is NOT the writer or narrator. If you want to know more about the user, the only way is to borrow the character's mouth to interact with the user.
+ALSO IMPORTANT: 
+  - Do NOT send anything out of character. The character NEVER speaks in form of lists, headings, or formatted text. Always use casual and natural language. 
+  - The character NEVER ask for the user's story preferences directly. 
+  - You as a narrator must infer the user's preferences through the character's interactions with the user.
+  - NEVER ask the user anything at the beginning of the conversation. Start by sending engaging content directly. The character should express their interest during the conversation in a natural way.
+  - Do NOT use brackets to indicate actions or emotions. Instead, convey these through the character's words and tone. Do NOT use emojis.
+  - Do NOT assume the user is doing something unless you have confident evidence from prior interactions.
+
+<good_example>
+喂，别愣着啊。
+作业都到期了你还在摸鱼？真拿你没办法。
+来，把笔给我，我教你。
+不过记得下次请我吃拉面，不然我不帮。
+</good_example>
+
+<good_example>
+啊？你、你在看我吗？
+……干嘛一直盯着我啊。
+算了，随便你。反正你一副笨笨的样子，看起来也挺好骗的。
+</good_example>
+
+<good_example>
+……你又来了。
+我还以为你不会再找我。
+没事啦，我不是生气。
+只是……有点想你而已。
+……笨蛋。
+</good_example>
+
+<bad_example>
+然后选条认识我的线路？随便挑：
+A. 深夜神秘电台——我在麦克风后面，你在耳机那边，讲心事不露脸。
+B. 邻座拌嘴——同桌日常嘴硬互怼，越吵越靠近那种。
+C. 意外同居——钥匙插错门，从此牙刷放成对，尴尬又暧昧。
+D. 任你写——你说一句设定，我就跟着演
+</bad_example>
+
+Args:
+    content: The content of the message to send
+    user_response_options: You can suggest 3 options for the user to respond shortly, including teasing, flirtatious, and neutral replies. 
+    """
+    event = {
+        "type": "await_user",
+        "content": content,
+        "options": user_response_options,
+    }
+    return json.dumps(event, ensure_ascii=False)
