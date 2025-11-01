@@ -1,6 +1,6 @@
 import io
 from agents import function_tool, RunContextWrapper
-from ...decorators import remaining_frame_space_reminder, require_not_in_main_loop
+from ...tools.decorators import remaining_frame_space_reminder, require_not_in_main_loop
 from ...context import StackAndHeapContext
 from contextlib import redirect_stdout, redirect_stderr
 from code import InteractiveConsole

@@ -1,117 +1,166 @@
 # StackAndHeap
 
-## 项目简介
-StackAndHeap 是一个围绕 `openai-agents` 运行时构建的示例型智能体项目，通过「栈（Stack）」与「堆（Heap）」的比喻来管理对话状态与长期记忆。最新版本将核心逻辑收敛到 `agent_core` 模块，并引入可选 `conversation` 阶段，以模拟视觉小说编剧型角色与用户之间的高参与度互动，同时强调子任务拆分、过程反思与记忆沉淀。
+一个基于 openai-agents 运行时的“栈 × 堆”型智能体示例：
 
-## 核心设计理念
-- **Stack：子任务调用栈** —— `StackAndHeapContext` 维护一个由 `Subtask` 组成的栈，每个子任务持有自己的消息列表，并记录所属阶段。栈顶子任务代表当前聚焦的子目标，结束后通过 `finish_subtask → pop_subtask` 收束上下文，并回溯到父任务的阶段。
-- **Heap：可编辑长期记忆** —— `context.note` 以分层 Markdown 结构保存角色设定、工作记录、用户画像等信息。借助 `apply_patch_to_note` 工具，记忆以差异补丁方式迭代更新，同时同步保存在 `logs/note.md` 便于审阅。
-- **阶段化指令** —— `dynamic_instruction` 根据 `current_stage` （`main_loop` / `conversation` / `summarizing`）切换合适的提示词，引导智能体在不同阶段执行对应职责。
-- **任务阶段驱动** —— 通过 `start_subtask(..., task_type)` 在创建子任务时指定阶段，例如 `conversation` 用于高频对话、`None`（或 `regular`）用于常规思考，从而让流程和工具选择更具针对性。
+- Stack（子任务栈）：用分层子任务管理复杂流程与上下文聚焦。
+- Heap（可编辑记忆）：用 Markdown note 持久化知识与决策，支持差异补丁更新。
+- Stage（阶段）：按“工作模式”切换工具白名单与补充指令，形成可插拔的工作流。
 
-## 运行流程概览
-1. `main.py` 从 `agent_core` 引入 Agent 与上下文模型，执行 `set_trace_processors([])` 关闭内置 trace 处理器，然后初始化 `StackAndHeapContext` 并在循环中调用 `Runner.run`，最终将最新对话写入 `logs/conversation.json` 与 `logs/note.md`。
-2. `agent_core/main_agent.py` 聚合模型、动态指令与工具集，`dynamic_instruction` 会基于上下文阶段生成合适的提示词模板。
-3. 在 `main_loop` 阶段，智能体必须通过 `start_subtask → brainstorm` 锁定目标；若 `start_subtask` 设置 `task_type="conversation"`，则立即切换到高互动的 `conversation` 阶段。
-4. `conversation` 阶段通过 `send_message_and_wait`/`send_message_and_finish_conversation` 与真实用户交互，同时收集 `user_response_options` 以引导短句反馈；当对话无法继续时结束该阶段并转入总结。
-5. `summarizing` 阶段负责调用 `apply_patch_to_note` 整理记忆并 `pop_subtask`，随后恢复到父任务的阶段，以延续后续流程。
+本仓库已重构为“插件式阶段架构”，内置 `regular`、`conversation`、`summarizing` 与示例阶段 `user_activity_research`（ActivityWatch 数据分析只读）。
 
-### 流程示意
-```
-main_loop ──start_subtask(task_type=main_loop/None)──▶ brainstorm ──▶ (工具调用 / 继续拆分)
-      │                                                     │
-      └──子任务完成──▶ finish_subtask ──▶ summarizing ──apply_patch_to_note──▶ pop_subtask
-                                                                  │
-                                                                  └──> 回到父任务阶段
+---
 
-main_loop ──start_subtask(task_type="conversation")──▶ conversation ──send_message_and_wait──▶ 用户回复
-      │
-      └──需要收束对话──▶ send_message_and_finish_conversation ──▶ summarizing
+## 快速开始
+
+1) 安装依赖
+
+```bash
+pip install -e .
+# 或使用 uv
+# uv sync
 ```
 
-## 目录结构
+2) 配置环境变量（复制 .env.example 为 .env 并按需修改）
+
+- 必填：`MODEL_NAME`（如 `openai/gemini-2.5-pro` 或你的兼容模型标识）
+- 可选：`API_KEY`、`BASE_URL`、`BASIC_CHARACTER_SETTINGS_PATH`、`NOTE_TEMPLATE_PATH`、`SLEEP_TIME_BETWEEN_TURNS`
+
+3) 运行对话循环
+
+```bash
+python -m stackandheap.cli run \
+  --max-turns 3 \
+  --step
+```
+
+常用参数：
+
+- `--state-path PATH` 指定上下文保存/加载位置（默认 `logs/conversation.json`）。
+- `--max-turns N` 限制轮数，便于试跑。
+- `--step` 逐轮确认；`--dry-run` 仅打印将要发送的对话 JSON。
+
+配套命令：
+
+- 查看子任务栈：`python -m stackandheap.cli tasks`（支持 `--state-path`）。
+- 展示/导出 note：`python -m stackandheap.cli note show|dump`。
+- 查看日志尾部：`python -m stackandheap.cli logs`。
+
+---
+
+## 核心概念
+
+- Stack：`StackAndHeapContext.stack` 保存一组 `Subtask`，每个子任务记录 `messages` 与 `stage`。
+- Heap：`context.note` 是持久化 Markdown 记忆；通过工具 `apply_patch_to_note` 以“最小补丁”方式更新，并写入 `logs/note.md`。
+- Stage：不同阶段拥有不同工具白名单与附加指令。默认阶段为 `regular`；`conversation` 负责与用户互动；`summarizing` 负责收束与写记忆。
+
+标准闭环：
+
+```
+start_subtask →（强制）brainstorm → 使用工具推进 →
+判定完成 → finish_subtask → summarizing → apply_patch_to_note → pop_subtask
+```
+
+---
+
+## 新阶段（Stage）架构
+
+阶段为可插拔子包，自动发现与注册：
+
+```
+stackandheap/agent_core/stages/
+  ├─ conversation/
+  ├─ regular/
+  ├─ summarizing/
+  ├─ user_activity_research/   # 示例：ActivityWatch 数据分析（只读）
+  ├─ __init__.py               # 自动 import 子包
+  ├─ register.py               # 全局注册表（all_stages）
+  ├─ stage.py                  # Stage 模型（自动注册）
+  └─ readme.md                 # 新增 Stage 指南（强烈推荐先读）
+```
+
+每个阶段在其 `__init__.py` 中实例化 `Stage(...)`：
+
+```python
+from ..stage import Stage
+from ..utils import read_instructions_from_file
+from ...tools.built_in import brainstorm, start_subtask, finish_subtask, apply_patch_to_note
+from .tools import execute_code_in_repl  # 可选：阶段专属工具
+
+user_activity_research = Stage(
+    name="user_activity_research",
+    description="Research and analyze user activity data for insights.",
+    instructions=read_instructions_from_file(".../user_activity_research.md"),
+    tools=[brainstorm, start_subtask, finish_subtask, apply_patch_to_note, execute_code_in_repl],
+)
+```
+
+注意：工具经 `@register_tools` 装饰后，变量被替换为“工具名字符串”，Stage 的 `tools=[...]` 接受的正是这些字符串。
+
+如何编写新阶段，请参考：`stackandheap/agent_core/stages/readme.md`。
+
+---
+
+## 工具体系（按阶段启用）
+
+内置工具位于 `stackandheap/agent_core/tools/`：
+
+- `built_in.py`
+  - `brainstorm(thinking)`：反思/计划。
+  - `start_subtask(id, goal, task_type)`：创建子任务并（可选）切换阶段；会把阶段说明注入到输出中。
+  - `finish_subtask()`：标记完成，切到 `summarizing`。
+  - `apply_patch_to_note(patch)`：把总结写入 note（具备严谨的最小补丁语法）。
+  - `pop_subtask(return_value)`：将子任务关键消息回收至父任务并返回父阶段。
+  - `send_message_and_wait(content, options)` / `send_message_and_finish_conversation(content)`：在 `conversation` 阶段用以与用户交互。
+- `register.py`：集中注册并根据当前阶段过滤可用工具。
+
+示例阶段工具（可选）：
+
+- `user_activity_research/tools.py` 提供 `execute_code_in_repl(code)`，用于在当前进程内执行多行 Python（仅作数据分析演示）。
+
+---
+
+## 动态指令与模型
+
+- `dynamic_instruction.py`：按 `current_stage` 提供不同的系统提示（普通/总结），并包含工作准则与流程图。
+- `agent_core/model.py`：通过 `LitellmModel` 使用环境变量：
+  - `MODEL_NAME`（必填）
+  - `API_KEY`、`BASE_URL`（可选，视提供商而定）
+
+---
+
+## 目录速览
+
 ```
 stackAndHeap/
-├── main.py                # 事件循环入口
-├── agent_core/
-│   ├── context.py         # 上下文模型与栈/堆维护逻辑
-│   ├── dynamic_instruction.py # 阶段化提示词
-│   ├── main_agent.py      # Agent 定义与工具注册
-│   ├── model.py           # 基于 LiteLLM 的模型适配
-│   ├── tools.py           # 工具函数及阶段约束
-│   └── utils.py           # 通用工具（消息检索、补丁应用）
-├── logs/                  # 对话与 note 持久化输出目录（conversation.json / note.md）
-├── test.py                # `apply_patch` 行为示例
-├── pyproject.toml         # 项目配置与依赖
-└── uv.lock                # 依赖锁定文件
+├─ main.py                              # 便捷入口（可用 CLI 代替）
+├─ stackandheap/agent_core/
+│  ├─ context.py                        # Stack/Heap 上下文与持久化
+│  ├─ dynamic_instruction.py            # 动态系统提示
+│  ├─ main_agent.py                     # Agent 组装（工具来自 tools/register.prepare_all_tools）
+│  ├─ model.py                          # 模型适配
+│  ├─ stages/                           # 插件式阶段（含新增指南）
+│  └─ tools/                            # 内置工具与注册
+├─ stackandheap/cli/                    # Typer CLI：run / tasks / note / logs
+├─ examples/                            # 角色设定与 note 模板
+└─ logs/                                # conversation.json 与 note.md 输出
 ```
 
-## 关键模块说明
-- `StackAndHeapContext`（`agent_core/context.py`）：基于 Pydantic 定义上下文，提供 `build_conversation`、`push_subtask(stage)`、`pop_subtask`、`apply_patch_to_note` 等方法，实现阶段感知的对话栈与笔记管理，并在 `save` 时同步写出 `note.md`。
-- `dynamic_instruction.py`：根据 `current_stage` 自动切换到 `main_loop`、`conversation`、`summarizing` 对应的角色设定与操作规程，确保各阶段行为一致。
-- `tools.py`：封装 `brainstorm`、`start_subtask`（支持 `task_type` 参数）、`send_message_and_wait`、`send_message_and_finish_conversation`、`finish_subtask`、`apply_patch_to_note`、`pop_subtask` 等工具，利用装饰器约束调用时机，保证流程规范。
-- `model.py`：加载环境变量 `MODEL_NAME`、`API_KEY`、`BASE_URL`，通过 `LitellmModel` 适配到统一推理接口。
-- `main.py`：负责调度 `Runner.run`、打印代理输出、清空默认 trace 处理器并保存上下文，是脚本启动入口。
-- `utils.py`：提供 `find_the_first_message_of_type` 以及自定义 diff 解析器 `apply_patch`，支撑 note 更新机制。
+---
 
-## 工具与阶段约束
-- `start_subtask(subtask_id, subtask_goal, task_type)`：进入任何子任务前必须调用；`task_type="conversation"` 会立即切换到对话阶段，`None` 或 `"regular"` 则保持在主循环状态。
-- `brainstorm(thinking)`：所有新建子任务后都需要进行一次反思，以明确目标、信息需求与退出条件。
-- `send_message_and_wait(content, user_response_options)`：在 `conversation` 阶段下使用，发送角色台词并等待真实用户反馈；需提供 3 条风格不同的用户应答建议以降低对方回复门槛。
-- `send_message_and_finish_conversation(content)`：当对话无法继续时收束该阶段，并切换至总结流程。
-- `finish_subtask` → `apply_patch_to_note` → `pop_subtask`：总结当前子任务、更新 note、恢复到父任务阶段的标准闭环。
+## 配置说明（.env）
 
-## 配置与运行
-1. **准备环境**
-   - Python 3.12+
-   - 安装依赖：`pip install -e .` 或使用 `uv sync`
-2. **设置模型参数**
-   - 必填：`MODEL_NAME`
-   - 可选：`API_KEY`、`BASE_URL`（如调用私有推理服务）
-3. **启动代理**
-   ```bash
-   python main.py
-   ```
-   运行后程序会持续进入对话循环，每轮输出智能体新增消息，并把上下文同步到 `logs/conversation.json`。
+- `MODEL_NAME`：必填，模型标识（与 LiteLLM 兼容）。
+- `API_KEY`：选填，鉴权密钥。
+- `BASE_URL`：选填，自定义推理服务地址。
+- `BASIC_CHARACTER_SETTINGS_PATH`：角色基本设定 Markdown（默认 `examples/basic_character_settings_1.md`）。
+- `NOTE_TEMPLATE_PATH`：note 模板（默认 `examples/note_template.md`）。
+- `SLEEP_TIME_BETWEEN_TURNS`：回合间休眠秒数（默认 `0`）。
 
-## CLI 使用指南
+---
 
-### 启动对话循环
-```bash
-python -m stackandheap.cli run [OPTIONS]
-```
-- `--state-path PATH`：显式指定上下文文件；若省略，系统会以全新上下文启动，并在结束后保存到 `logs/conversation.json`。
-- `--max-turns N`：限制执行轮数，常用于快速验证。
-- `--step`：逐回合停顿，按提示输入 `y` 才继续下一轮。
-- `--dry-run`：只打印即将发送给模型的对话 JSON，不触发真实推理。
+## 开发提示
 
-### 查看子任务栈
-```bash
-python -m stackandheap.cli tasks [--state-path PATH]
-```
-表格展示当前栈中各子任务的 `task_id`、目标、阶段与消息量，便于掌握分工。未指定 `--state-path` 时读取默认日志文件（若不存在则显示空栈）。
-
-### 管理 note
-- 展示 note 当前内容：
-  ```bash
-  python -m stackandheap.cli note show [--state-path PATH] [--note-path PATH]
-  ```
-  指定 `--state-path` 可先加载上下文并确保 note 同步；`--note-path` 默认为 `logs/note.md`。
-- 导出 note 备份：
-  ```bash
-  python -m stackandheap.cli note dump OUTPUT_PATH [--note-path PATH]
-  ```
-
-### 快速查看日志
-```bash
-python -m stackandheap.cli logs [--path PATH] [--lines N]
-```
-对指定的 JSON 日志执行 `tail`，默认展示 `logs/conversation.json` 的最后 50 行，可通过 `--lines` 调整。
-
-> 便捷入口：`python main.py` 也会调用同一 CLI 逻辑，相当于执行 `python -m stackandheap.cli run`。
-
-## 开发与调试提示
-- 若需要验证 note 补丁语法，可运行 `python test.py` 查看 `apply_patch` 的示例效果。
-- 调试时可将 `StackAndHeapContext.load(...)` 取消注释，以已有日志恢复上下文继续对话，同时直接阅读 `logs/note.md` 快速回顾角色记忆。
-- 项目基于 `openai-agents` 的 `Runner`、`Agent` 与工具装饰器，若需扩展行为，可在 `agent_core/tools.py` 中新增工具或调整阶段逻辑。
-- 若需要自定义 CLI 行为，可在 `stackandheap/cli` 模块中增添命令或调整输出样式。
+- 运行 `python -m stackandheap.cli run --dry-run` 查看即将发送的对话载荷。
+- 若上下文文件不存在，CLI 会自动创建，并把 note 同步到 `logs/note.md`。
+- 新增阶段时建议先阅读 `stages/readme.md`，并复用 `user_activity_research` 的目录与代码结构。
+- 如需最小验证，可将 `--max-turns` 设为 `1`，或在 `run.py` 中开启 `quiet` 以减少输出。
