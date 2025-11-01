@@ -1,5 +1,5 @@
 
-from typing import List, Literal
+from typing import List
 import json
 from agents import TResponseInputItem
 from .utils import find_the_first_message_of_type, apply_patch
@@ -7,8 +7,6 @@ from pydantic import BaseModel, Field
 import os
 import dotenv
 
-SpecificStage = Literal["conversation"]
-Stage = SpecificStage | Literal["summarizing", "regular"]
 
 dotenv.load_dotenv()
 note_template_path = os.getenv(
@@ -21,13 +19,13 @@ class Subtask(BaseModel):
     task_id: str = "main"
     goal: str = "main"
     messages: List[TResponseInputItem] = Field(default_factory=list)
-    stage: Stage = "regular"
+    stage: str = "regular"
 
 
 class StackAndHeapContext(BaseModel):
     stack: List[Subtask] = [Subtask()]
     note: str = NOTE_TEMPLATE
-    current_stage: Stage = "regular"
+    current_stage: str = "regular"
     chat_history: List[TResponseInputItem] = Field(default_factory=list)
 
     def save(self, path: str) -> None:
@@ -43,7 +41,7 @@ class StackAndHeapContext(BaseModel):
             data = json.load(f)
         return cls.model_validate(data)
 
-    def push_subtask(self, subtask_id: str, subtask_goal: str, stage: Stage):
+    def push_subtask(self, subtask_id: str, subtask_goal: str, stage: str):
         self.stack.append(Subtask(task_id=subtask_id,
                           goal=subtask_goal, messages=[], stage=stage))
 

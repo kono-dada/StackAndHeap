@@ -6,6 +6,9 @@ import asyncio
 import json
 from pathlib import Path
 from typing import Any, Optional
+import time
+import dotenv
+import os
 
 import typer
 from agents import Runner, RunResult, set_trace_processors
@@ -27,6 +30,9 @@ from .utils import (
     render_messages,
     save_context,
 )
+
+dotenv.load_dotenv()
+sleep_time_between_turns = float(os.getenv("SLEEP_TIME_BETWEEN_TURNS", "0.0"))
 
 
 def _parse_interaction_event(output: Any) -> Optional[dict[str, Any]]:
@@ -171,6 +177,7 @@ async def _run_loop(
             if not quiet:
                 console.print("[yellow]用户选择结束运行。[/yellow]")
             break
+        time.sleep(sleep_time_between_turns)
 
 
 def run_agent(
